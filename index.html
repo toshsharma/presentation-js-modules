@@ -1,0 +1,1428 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>A Deep Dive Into JavaScript Modules</title>
+
+		<meta name="description" content="A Deep Dive Into JavaScript Modules">
+		<meta name="author" content="Ashutosh Sharma">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/night.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+        <style>
+            .reveal h1 {
+                font-size: 3.0em;
+                line-height: 1.3em;
+                margin-bottom: 0.5em;
+            }
+            .reveal pre code {
+                font-size: 1.4em;
+                padding: 0.8em;
+                margin-top: 1.5em;
+                line-height: 1.5em;
+            }
+            .reveal h3.fragment {
+                color: #f92;
+                margin-top: 0.75em;
+            }
+            .reveal h4.fragment {
+                color: #f92;
+                margin-top: 0.75em;
+            }
+            .highlight-tag {
+                /* color: #c90; */
+            }
+            .highlight-string {
+                color: #cc9393;
+            }
+            .reveal .highlight-subheading {
+                color: #f92;
+            }
+            .reveal .button-click {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 5px 15px;
+                background-color: #f90;
+                color: #000;
+                cursor: pointer;
+                border-radius: 10px;
+                margin-left: 10px;
+                margin-right: 10px;
+            }
+            .reveal .button-click:hover {
+                background-color: #c60;
+            }
+            .reveal .info-title {
+                text-align: left;
+                color: #f90;
+            }
+            .reveal .info {
+                background-color: #444;
+                margin-top: 0.5em;
+                margin-bottom: 15px;
+                font-size: 0.7em;
+                text-align: left;
+                padding: 0.3em;
+                padding-left: 1em;
+            }
+            .cover-slide body {
+                background-image: url(images/adobe.png);
+                background-position-x: 95%;
+                background-position-y: 0;
+                background-repeat: no-repeat;
+            }
+            .cover-slide .reveal h4 {
+                color: #ccc;
+                font-size: 0.8em;
+            }
+            .cover-slide .reveal h5 {
+                color: #aaa;
+                font-size: 0.7em;
+            }
+            .reveal li {
+                line-height: 1.5em;
+            }
+        </style>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<div class="slides">
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+				<section data-state="cover-slide" data-background="images/background.jpg">
+					<h1>A Deep Dive Into JavaScript Modules</h1>
+					<h3>
+						<small>by <a href="http://deceptiveweb.com">Ashutosh Sharma</a> / <a href="https://twitter.com/zorder">@zorder</a></small>
+					</h3>
+                    <h4>
+                        Senior Computer Scientist
+                    </h4>
+                    <h5>
+                        (Web Platform & Authoring)
+                    </h5>
+				</section>
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+				<section>
+					<h2>Quick Poll</h2>
+                    <p>
+                        <h4><a href="#1">Spaghetti code?</a></h4>
+                        <ul>
+                            <li>Need to maintain correct order of &lt;script&gt; tags?</li>
+                            <li>Polluted global namespace with clashing symbols?</li>
+                            <li>Difficulty in lazy loading scripts?</li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>Have any of you ever dealt with spaghetti code? </li>
+                                <li>i.e. unmanageable code in large projects, when scripts begin to have overlapping or nested dependencies? </li>
+                            </ul>
+                        </aside>
+                    </p>
+
+				</section>
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+				<section>
+                    <section>
+                        <h2>The Problem</h2>
+                            <ul>
+                                <li class="fragment">Increasing code complexity </li>
+                                <li class="fragment">Developers want discrete JS files </li>
+                                <li class="fragment">Need for optimized deployment </li>
+                                <li class="fragment">Good debugging support </li>
+                            </ul>
+
+                            <aside class="notes">
+                                <ul>
+                                    <li>Today, we see that code complexity is increasing as sites are getting bigger and web sites are turning into web applications </li>
+                                    <li>Developers want discrete JS files as multiple developers often work on the same piece of code </li>
+                                    <li>Developers today also want optimized code that can be delivered in one or a few HTTP calls, while still being able to debug the original code </li>
+                                </ul>
+                            </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h2>Modular JavaScript</h2>
+                        <ul>
+                            <li class="fragment roll-in">encapsulate a piece of code into a unit</li>
+                            <li class="fragment roll-in">register its capability</li>
+                            <li class="fragment roll-in">refer to other units as dependencies</li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The answer, of course, is modular JavaScript </li>
+                                <li>When we say that we want to write modular JavaScript, what we mean is that we need a way to: </li>
+                                    <ul>
+                                        <li>... </li>
+                                        <li>register its capability so that others can find it</li>
+                                        <li>... </li>
+                                    </ul>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+                    <section>
+                        <h3>The Old Way</h3>
+                        <ul>
+                            <li class="fragment">No support for modules in the language</li>
+                            <li class="fragment">Scripts are loaded via &lt;script&gt; tags</li>
+                            <li class="fragment">Dependencies are stated via the order of &lt;script&gt; tags</li>
+                                <pre class="fragment"><code data-trim contenteditable>
+&lt;script src="jquery.js"&gt;&lt;/script&gt;
+&lt;script src="jquery.color-plugin.js"&gt;&lt;/script&gt;
+                                </code></pre>
+                            <li class="fragment">Global functions as event handlers</li>
+                        </ul>
+                        <aside class="notes">
+                            <ul>
+                                <li>Unfortunately, there's no support for modules in the current iteration of the JavaScript language. </li>
+                                <li>It's common practice to load JavaScript files by using 'script' tags in the HTML source. </li>
+                                <li>Dependencies are implied by the order of these tags. </li>
+                                <li>People also sometimes use global functions as event handlers and then refer to them in an onclick attribute, for instance. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+                    <section>
+                        <h3>Avoiding Name Clashes</h3>
+                        <ul>
+                            <li class="fragment">Specially named (prefixed) global functions</li>
+                                <pre class="fragment"><code data-trim contenteditable>
+<button
+    onclick="survey_form__onsubmit()">
+    Submit
+</button>
+                                </code></pre>
+                            <li class="fragment">Employing the object literal or the classic module pattern</li>
+                        </ul>
+                        <aside class="notes">
+                            <ul>
+                                <li>However, name clashes can occur when concatenating multiple scripts or by simply loading them one after the other via multiple script tags. </li>
+                                <li>Developers sometimes use special prefixes to create virtual namespaces. </li>
+                                <li>However, such specially named global functions still provide no guarantee of no name clashes and still pollute the global namespace. </li>
+                                <li>A much better way is to attach event handlers via JavaScript.</li>
+                                <li>The other way of reducing name clashes is to use the object literal or the classic module pattern. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+                    <section>
+                        <h3>Object Literal Pattern</h3>
+                        <pre><code data-trim contenteditable>
+var myModule = {
+    foo: function() {
+        console.log("foo!");
+    },
+    bar: function() {
+        console.log("bar!");
+    }
+};
+//...
+myModule.foo();
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The object literal pattern provides a way to organize your code without polluting the global namespace (too much). </li>
+                                <li>You can do this by encapsulating related behaviors together into a single object. </li>
+                                <li>However, do note that 'myModule' is still typically a global object. Having too many of such objects will still pollute the global namespace.</li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Object Literal Pattern: Data</h3>
+                        <pre><code data-trim contenteditable style="font-size: 1.25em;">
+var myModule = {
+    options: {
+        name: "John Doe", 
+        age: 30 
+    },
+    init: function(name, age) {
+        this.options.name = name;
+        this.options.age = age;
+    },
+    foo: function() {
+        console.log("foo!");
+    }
+};
+                        </code></pre>
+                        <aside class="notes">
+                            <ul>
+                            - You can also have some data in the object, but that won't be private
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Object Literal Pattern: Nesting</h3>
+                        <pre><code data-trim contenteditable>
+var Util = {
+    Logging: { 
+        info:  function() { ... },
+        debug: function() { ... }
+    },
+    Data: {
+        fetch: function() { ... },
+        save:  function() { ... }
+    }
+};
+Util.Data.fetch();
+                        </code></pre>
+                        
+                        <aside class="notes">
+                            <ul>
+                             - Such 'namespacing' objects can also be nested to better organize your code and to not pollute the global namespace too much.
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+
+                    <section>
+                        <h3>Module Pattern</h3>
+                        <h4 class="fragment">Anonymous Closures</h4>
+                        <pre class="fragment"><code data-trim contenteditable>
+(function() {
+    // private scope!
+    // private state!
+})();
+                        </code></pre>
+
+                        <h4 class="fragment">IIFE (Immediately Invoked Function Expression)</h4>
+
+                        <ul>
+                            <li class="fragment">The function creates a new scope with access to global variables </li>
+                            <li class="fragment">The closure provides us private state for the application's lifetime </li>
+                        </ul>
+                        
+                        <aside class="notes">
+                            <ul>
+                                <li>The module pattern makes good use of anonymous closures. </li>
+                                <li>Note the parentheses around the function. They create a function expression rather than a function declaration. </li>
+                                <li>Here, we're creating an anonymous function and then executing it immediately. </li>
+                                <li>This is the fundamental construct that makes the module pattern possible. </li>
+                                <li>The function creates a new scope that can access outer global variables but doesn't pollute the global namespace at all. </li>
+                                <li>The function's code lives in a closure, which also provides us with private state for the lifetime of the application.</li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Module Pattern</h3>
+                        <h4 class="fragment">Importing Globals</h4>
+                        <pre class="fragment"><code data-trim contenteditable>
+(function($, document, undefined) {
+    // $ refers to the jQuery global here
+})(jQuery, document);
+                        </code></pre>
+
+                        <ul>
+                            <h4 class="fragment">Cleaner and faster</h4>
+                        </ul>
+                        
+                        <aside class="notes">
+                            <ul>
+                                <li>When a symbol's name is used in JavaScript, the intepreter walks up the scope chain looking for that symbol. If it's not found, it's assumed to be global. </li>
+                                <li>By assigning to such a symbol, you can create a new global if it doesn't exist. </li>
+                                <li>Since it's so easy to create or refer to globals, we can end up with code where it's not obvious which variables are global. </li>
+                                <li>Instead, we can pass such globals to our anonymous function as arguments, thereby formally acknowledging that we're 'importing' them to our code. </li>
+                                <li>This is both cleaner and faster. Faster because the name lookup will succeed in the function's scope itself. </li>
+                                <li>You might've seen this pattern of including an extra "undefined" argument. This is used to ensure that we're not using a potentially overwritten value of 'undefined' from the global window object.</li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Module Pattern</h3>
+                        <h4 class="fragment">Exporting a Module</h4>
+                        <pre class="fragment"><code data-trim contenteditable>
+var myModule = (function() {
+    var privateData = 42;
+    var privateMethod = function() { ... };
+
+    return {
+        name: "John Doe",          // &lt;= public
+        foo:  function() { ... },  // &lt;= public
+        bar:  function() { ... }   // &lt;= public
+    };
+})();
+                        </code></pre>
+
+                        <ul>
+                            <li class="fragment">Return a value from the anonymous function</li>
+                            <li class="fragment">This is the module's public interface</li>
+                            <li class="fragment">We can also maintain private state and have private methods</li>
+                        </ul>
+                        
+                        <aside class="notes">
+                            <ul>
+                                <li>To export the public functionality of a module, we can return a value from the anonymous function. </li>
+                                <li>Here, we've created a global variable myModule that has 3 public properties. </li>
+                                <li>privateData and privateMethod can't be accessed from outside but can be used by foo() and bar() internally.</li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Object Literal And Module Patterns</h3>
+                        <h4 class="highlight-subheading">Using them together</h4>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+var Util = {
+    Data: (function() {
+        var privateData = 42;
+        return {
+            fetch: function() { ... },
+            save:  function() { ... }
+        };
+    })()
+};
+Util.Data.fetch();
+                        </code></pre>
+                        
+                        <aside class="notes">
+                            <ul>
+                                <li>We can also use these patterns together </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+                    <section>
+                        <h3>Object Literal And Module Patterns</h3>
+                        <h4 class="highlight-subheading">Review</h4>
+
+                        <ul>
+                            <li class="fragment highlight-green">Encapsulate pieces of code into units</li>
+                            <li class="fragment highlight-red">Pollute the global namespace</li>
+                            <li class="fragment highlight-red">Provide no dependency management</li>
+                        </ul>
+                        
+                        <aside class="notes">
+                            <ul>
+                                <li>Let's see how well these patterns help us in writing manageable modular JavaScript </li>
+                                <li>They do encapsulate code into units, where we can export a public interface for the module </li>
+                                <li>However, they do still require the creation of globals </li>
+                                <li>We also still need to manually order these modules to satisfy dependencies </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+
+
+                </section>
+
+
+
+
+
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+                <section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h2>What can we do?</h2>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>So, we're in a situation where JavaScript has no native support for dependency management. </li>
+                                <li>Scripts must be manually managed in HTML, injected or manually fetched and evaluated. </li>
+                                <li>So, what can we do? </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS</h3>
+
+                        <ul>
+                            <li class="fragment">A volunteer group for standardizing JavaScript APIs</li>
+                            <li class="fragment">Write once, run everywhere </li>
+                            <li class="fragment">e.g. web servers, command-line applications, desktop applications </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>This is exactly what a group of people were wondering. </li>
+                                <li>CommonJS is a volunteer group for designing, prototyping and stardizing JavaScript APIs for common application needs </li>
+                                <li>The idea is that a developer can write an application using CommonJS APIs and then run that app across JS interpreters and host environments </li>
+                                <li>This includes JavaScript outside the browser - e.g. web servers, command-line applications, desktop applications </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS</h3>
+                        
+                        <h4 class="highlight-subheading">Specifications</h4>
+
+                        <ul class="fragment">
+                            <li class="fragment highlight-green">Modules</li>
+                            <li>Packages</li>
+                            <li>Unit testing</li>
+                            <li>Binary data</li>
+                            <li>Text encoding</li>
+                            <li>Console logging</li>
+                            <li>File system</li>
+                            <li>...</li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The CommonJS group has been working on standardizing APIs for several things </li>
+                                <li>We'll be focusing on the CommonJS modules specification that this group came up with </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS Modules</h3>
+                        
+                        <ul>
+                            <li class="fragment">exports</li>
+                            <li class="fragment">require()</li>
+                            <li class="fragment">One module per file</li>
+                            <li class="fragment">Top-level or relative module IDs</li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>CommonJS modules contain two primary parts: </li>
+                                <li>A free variable named "exports" that specifies the public functionality of the module </li>
+                                <li>And, a require() function that can be used to import the "exports" of other modules, by specifying a string ID </li>
+                                <li>There's a one-to-one correspondence between a module and a file </li>
+                                <li>You can refer to other modules by using either top-level or relative paths as module IDs </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS Modules</h3>
+                        <h4 class="highlight-subheading">Module Structure</h4>       
+                        <pre><code data-trim contenteditable>
+var log = require("./logger");
+
+function foo() {
+    log.write("foo!");
+}
+
+exports.foo = foo;
+                        </code></pre>
+
+                        <div class="fragment" style="text-align: left; font-size: 0.8em;">logger.js:</div>
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+exports.write = function(msg) {
+    console.log(msg);
+}
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS Modules</h3>
+                        <h4 class="highlight-subheading">Exporting Constructors</h4>
+
+                        <div style="text-align: left;">person.js:</div>
+                        <pre><code data-trim contenteditable style="font-size: 1.25em;">
+function Person(name, age) {
+    this.name = name; this.age = age;
+
+    this.sayName = function() { console.log(name); }
+    this.sayAge = function() { console.log(age); }
+}
+
+exports.Person = Person;
+                        </code></pre>
+
+                        <div class="fragment" style="text-align: left;">main.js:</div>
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+var Person = require("./person").Person;
+
+var john = new Person("John", 30);
+john.sayName(); // =&gt; John
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>'exports' itself is an object. </li>
+                                <li>However, some frameworks like to export a constructor from a module. </li>
+                                <li>You can do this by having such a constructor as a property of the 'exports' object </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS Modules</h3>
+                        <h4 class="highlight-subheading">module</h4>
+                        
+                        <pre><code data-trim contenteditable style="font-size: 1.25em;">
+exports.write = function(msg) { console.log(msg); }
+console.log(module);
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+{ 
+  id: '/Users/ashutosh/app/logger.js',
+  exports: { write: [Function] },
+  parent: { ... }, loaded: false, children: [],
+  filename: '/Users/ashutosh/app/logger.js',
+  paths: [ 
+     '/Users/ashutosh/app/node_modules',
+     '/Users/ashutosh/node_modules',
+     '/Users/node_modules',
+     '/node_modules'
+  ] 
+}
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>There's actually another free variable named 'module' that's available inside a module </li>
+                                <li>'children' is an array of this module's dependencies </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>CommonJS Modules</h3>
+                        <h4 class="highlight-subheading">Support</h4>
+                        
+                        <ul>
+                                <li>Node <span class="highlight-string">(server-side)</span></li>
+                                <li>Narwhal <span class="highlight-string">(server-side)</span></li>
+                                <li>curl.js <span class="highlight-string">(in-browser)</span></li>
+                                <li>SproutCore <span class="highlight-string">(in-browser)</span></li>
+                                <li>Browserify <span class="highlight-string">(in-browser)</span></li>
+                                <li>... </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>These loaders and frameworks support CommonJS modules. </li>
+                                <li>Node's module system is based on CommonJS but is slightly different - e.g. it allows functions to be exported as a module's exports </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Issues With CommonJS Modules</h3>
+                        
+                        <ul>
+                            <li class="fragment">require() is a synchronous call </li>
+                            <li class="fragment">Only one module per file </li>
+                            <li class="fragment">Additional steps required for modules to work in browsers </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The CommonJS require() is a synchronous call, it is expected to return the module immediately. This does not work well in the browser, as you don not want the user's browser to hang up, waiting for a network fetch to finish. </li>
+                                <li>Developers want to be able to minify and concatenate multiple scripts into a single file. There's currently no agreement on such a 'transport format' for CommonJS modules. </li>
+                                <li>CommonJS modules were not designed for use in the browser. To make them work in browsers, one needs to: </li>
+                                    <ul>
+                                        <li>either translate or wrap CJS modules on the server </li>
+                                        <li>or, use XHR to load the module's text and transform or parse it in the browser </li>
+                                    </ul>
+                                <li>The end result is that using CJS modules in the most common JS environment, i.e. the browser, is not optimal </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+
+                </section>
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+                <section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h2>What can we do?</h2>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>We're back to the old question. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <ul class="fragment">
+                            <li>Async loading of modules and dependencies </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>This question gave rise to AMD. </li>
+                                <li>It's a proposal for defining modules where modules and their dependencies can be loaded asynchronously. </li>
+                                <li>AMD also fixes the issues with CommonJS modules that we just discussed. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <ul>
+                            <li>define() </li>
+                            <li>require() </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The two primary parts in AMD modules are the free variables define and require. </li>
+                                <li>The 'define' method is used to define modules </li>
+                                <li>And 'require' is used to load dependencies </li>
+                                <li>Although it has the same name as in CommonJS modules, 'require' works differently in AMD modules. </li>
+                                <li>Let's look at these in detail. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">define()</h4>
+
+                        <pre><code data-trim contenteditable>
+define(
+    module_id, /* optional */
+    [ dependencies ], /* optional */
+    module_definition_function
+);
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The first two arguments to 'define' are optional. </li>
+                                <li>module_id </li>
+                                <ul>
+                                    <li>module_id is almost always skipped in user code. It is useful when bundling multiple modules in a single file. </li>
+                                    <li>An anonymous module's module ID is assumed from the path of the file that defines the module. </li>
+                                    <li>You would typically define one module per file and then use a concatenating tool to bundle them together at the time of deployment </li>
+                                </ul>
+                                <li>The 2nd argument is an array of module_ids of dependencies </li>
+                                <li>module_definition_function is a function that is invoked to instantiate the module </li>
+                                <li>This function's return value is the module's exported public interface. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">define()</h4>
+
+                        <pre><code data-trim contenteditable>
+define(
+    ['foo', 'bar'], 
+    function(foo, bar) {
+        var myModule = {
+            foo: function() { /* ... */ }
+        };
+
+        return myModule;
+    }
+);
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>'define' first loads the modules 'foor' and 'bar' and then calls the anonymous module definition function with the exports from the two dependencies as arguments. </li>
+                                <li>The order of the arguments matters here. </li>
+                                <li>The return value can also be a function, e.g. a constructor </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">require()</h4>
+
+                        <pre><code data-trim contenteditable>
+require(
+    [ dependencies ],
+    callback_function
+);
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+require(
+    ['foo', 'bar'],
+    function(foo, bar) {
+        foo.process(bar());
+    }
+);
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>'require' is typically used to load a module in top-level JS files </li>
+                                <li>It is also used to dynamically fetch dependencies within modules </li>
+                                <li>require's signature looks deceptively similar to that of 'define' </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">Dynamically Loading Dependencies</h4>
+
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+define(function(require) {
+    var ready = false, count = 0;
+    
+    require(['foo', 'bar'], function(foo, bar) {
+        ready = true;
+        count = foo.count() + bar.count();
+    });
+
+    return {
+        ready: ready,
+        getCount: function() { return count; }
+    }
+});
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>When you want to use 'require' inside a module to load any dependencies dynamically, this is the signature of 'define' that you'd use. </li>
+                                <li>This is a simplified 'define' wrapper, where no dependencies are listed </li>
+                                <li>We can still return a module. However, it's possible that 'require' still called the callback function </li>
+                                <li>We can also use a 'Promise' or 'Deferred' library as a dependency and return a promise as the module's exports. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">AMD Plugins</h4>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+define(
+    ['text!../templates/entry.html', 'foo'], 
+    function (template, foo) {
+        // do something with the template text string.
+    }
+);
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>AMD also lets you load assets such as HTML and text files. </li>
+                                <li>The syntax for using an AMD plugin is to have the plugin's ID before an exclamation and a resource's ID after it, when specifying a dependency. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">Simplified CommonJS Wrapping</h4>
+
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+define(function(require, exports, module) {
+    // Traditional CommonJS module content here
+});
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+define(function(require, exports, module) {
+    var foo = require('foo'),
+        bar = require('bar');
+
+    exports.foobar = function() { foo.count() + bar.count() };
+});
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>A good thing is that you can use existing CommonJS modules with an AMD loader by wrapping your existing code with these lines </li>
+                                <li>If the dependencies argument is omitted, the module loader may choose to scan the factory function for dependencies in the form of require statements. </li>
+                                <li>The first argument must be named require for this to work. </li>
+                                <li>Works almost everywhere, as long as there's no conditional loading of modules </li>
+                                <li>This depends on Function.prototype.toString() </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+
+                        <h4 class="highlight-subheading">Advantages</h4>
+
+                        <ul>
+                            <li class="fragment">Avoids pollution of the global namespace </li>
+                            <li class="fragment">Load modules in the browser without a build process </li>
+                            <li class="fragment">Multiple modules can be bundled in a single file </li>
+                            <li class="fragment">Lazy loading of scripts is possible </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>Server-side tools are not necessary to load AMD modules in browsers </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Asynchronous Module Definition</h3>
+                        <h4 class="highlight-subheading">Support</h4>
+                        
+                        <ul>
+                                <li>RequireJS <span class="highlight-string">(in-browser)</span></li>
+                                <li>curl.js <span class="highlight-string">(in-browser)</span></li>
+                                <li>RequireJS <span class="highlight-string">(server-side)</span></li>
+                                <li>PINF <span class="highlight-string">(server-side)</span></li>
+                                <li>... </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>These loaders and frameworks support AMD modules. </li>
+                                <li>Note that RequireJS works on both the server and client sides </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>RequireJS</h3>
+                        <h4 class="highlight-subheading">Basic Usage</h4>
+                        
+                        <div style="text-align: left; font-size: 0.8em;">index.html:</div>
+                        <pre><code data-trim contenteditable style="font-size: 1.25em;">
+&lt;script data-main="scripts/main" src="require.js"&gt;&lt;/script&gt;
+                        </code></pre>
+
+                        <div class="fragment" style="text-align: left; font-size: 0.8em;">scripts/main.js:</div>
+                        <pre class="fragment"><code data-trim contenteditable>
+require(['helper/util'], function(util) {
+    // ...
+});
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>You can keep all your scripts out of your HTML </li>
+                                <li>And only include require.js with a data-main attribute on its script tag </li>
+                                <li>Here, main.js is the single entry point to your code </li>
+                                <li>This loads util.js asynchronously </li>
+                                <li>When the util.js module calls define(), then the callback function will not be fired until all of util's dependencies have loaded </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>RequireJS</h3>
+                        <h4 class="highlight-subheading">Optimizer Tool</h4>
+                        
+                        <ul>
+                            <li>Bundle JavaScript files and modules into a single file </li>
+                            <li>Minify the result </li>
+                            <li>Convert CommonJS modules to the AMD format </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>RequireJS has an optimizer tool named 'r.js' which can be used to combine JavaScript files and modules together and minify the result. </li>
+                                <li>It can also convert CommonJS modules to AMD modules </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                </section>
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+                <section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h2>Sharing Code Between </h2>
+                        <h2>Servers and Browsers</h2>
+
+                        <ul class="fragment">
+                            <li>CommonJS modules &rarr; Server-side </li>
+                            <li>AMD modules &rarr; In-browser </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <li>We've seen that CommonJs modules are more suited when working on the server </li>
+                            <li>And, AMD modules are more suited for the browser </li>
+                            <li>But, what can we do when we want to share code between these two environments </li>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Sharing Code</h3>
+                        
+                        <ul>
+                            <li class="fragment">AMD-compatible Wrapper + RequireJS </li>
+                            <ul>
+                                <li class="fragment">e.g. Used by Adobe Brackets </li>
+                                <pre class="fragment"><code data-trim contenteditable style="font-size: 1em;">
+define(function(require, exports, module) {
+    /* ... */
+    exports.foo = function() { /* ... */ }
+});
+                                </code></pre>
+                            </ul>
+                            <li class="fragment">Browserify </li>
+                            <li class="fragment">Use globals in the browser </li>
+                            <pre class="fragment"><code data-trim contenteditable style="font-size: 1em;">
+(function(exports) {
+    /* ... */
+    exports.foo = function() { /* ... */ }
+})(typeof exports !== "undefined" ? exports 
+                  : this['myModule']={});
+                            </code></pre>
+                            <li class="fragment">amdefine </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>We do have several options: </li>
+                                <li>You can use the Simplified CommonJS Wrapper (or use r.js to create it) and RequireJS as your module loader in both environments. RequireJS' module loader can co-exists with that of Node. </li>
+                                <li>Or, you can use Browserify to make node modules usable in the browser. A module loader is not required on the browser side. </li>
+                                <li>Or, you can use this wrapper in your CommonJS modules to make them work in the browser. However, since there's no 'require' in the browser, this will only work for simple modules that have no dependencies! This also creates globals! </li>
+                                <li>You can also use 'amdefine' to create AMD modules that can be used in the Node environment </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h3>Sharing Code</h3>
+
+                        <h4 class="highlight-subheading">Universal Module Definition (UMD)</h4>
+
+                        <pre><code data-trim contenteditable style="font-size: 1em;">
+(function (define) {
+    define('id', function (require, exports) {
+        var a = require('a');
+        exports.name = value;
+    });
+}(typeof define === 'function' && define.amd ? define : function (id, factory) {
+    if (typeof exports !== 'undefined') {
+        // CommonJS
+        factory(require, exports);
+    } else {
+        // Create a global function.
+        factory(function(value) {
+            return window[value];
+        }, (window[id] = {}));
+    }
+}));
+                        </code></pre>
+
+                        <ul>
+                            <li>Works in both CommonJS and AMD environments </li>
+                            <li>Optionally calls <em>define</em>, if available </li>
+                            <li>Optionally uses <em>exports</em>, if available </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>There's also UMD, that defines modules in a way that can work on both server and client sides. </li>
+                                <li>This format will work with both AMD and CommonJS module loaders. </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                </section>
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+                <section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h2>ES6 Modules</h2>
+
+                        <ul>
+                            <li>Declarative syntax </li>
+                            <li>Loader API </li>
+                        </ul>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>Let's also take a brief look at module support in the next iteration of JavaScript </li>
+                                <li>The goal was to have a format that both AMD and CommonJS users are happy with </li>
+                                <li>The spec has two parts: </li>
+                                <ul>
+                                    <li>A declarative syntax for importing and exporting modules </li>
+                                    <li>A programmatic API to dynamically load modules and configure module loading </li>
+                                </ul>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                    <section>
+                        <h2>ES6 Modules</h2>
+                        <h4 class="highlight-subheading">Exporting</h4>
+
+                        <pre><code data-trim contenteditable>
+// circle.js
+let function sq(n) { return n * n; } // private
+export const PI = 3.14159
+export function area(r) { return PI * r * r; }
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+// scripts/circle.js
+const PI = 3.14159
+function area(r) { return PI * r * r; }
+
+export { PI, area };
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+export { PI as approximatePI, area };
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>Any JavaScript file can be a module </li>
+                                <li>You can export something by prefixing it with the keyword 'export' </li>
+                                <li>This module exports the constant PI and the function area </li>
+                                <li>You can also select and export things later </li>
+                                <li>You can also rename things when exporting </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+            
+                    <section>
+                        <h2>ES6 Modules</h2>
+                        <h4 class="highlight-subheading">Importing</h4>
+
+                        <pre><code data-trim contenteditable>
+// main.js
+import { area } from 'scripts/circle';
+console.log(area(5));
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+import { area, PI } from 'scripts/circle';
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+import 'scripts/circle' as circle;
+console.log(circle.area(5));
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable>
+import { area as areaOfCircle } from 'scripts/circle';
+console.log(areaOfCircle(5));
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The import keyword can be used both in modules as well as top-level JS files </li>
+                                <li>By default, the string ID is resolved relative to the importing file </li>
+                                <li>Do note the curly braces around the imported symbol </li>
+                                <li>You can also import multiple values simultaneously </li>
+                                <li>You can also import a module into an object </li>
+                                <li>You can also rename things when importing </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+            
+                    <section>
+                        <h2>ES6 Modules</h2>
+                        <h4 class="highlight-subheading">Inline Modules</h4>
+
+                        <pre><code data-trim contenteditable>
+module 'scripts/circle' {
+    // ...
+}
+module 'scripts/rectangle' {
+    // ...
+}
+module 'foo' {
+    // ...
+}
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>You can use inline modules to bundle multiple modules in a single file </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+            
+                    <section>
+                        <h2>ES6 Modules</h2>
+                        <h4 class="highlight-subheading">Module Loader API</h4>
+
+                        <pre><code data-trim contenteditable style="font-size: 1.25em;">
+System.import(
+    ['foo', 'bar'],
+    function(foo, bar) { // success
+        // ...
+    },
+    function(error) {    // failure
+        // ...
+    }
+);
+                        </code></pre>
+
+                        <pre class="fragment"><code data-trim contenteditable style="font-size: 1.25em;">
+System.load(
+    'path/to/jquery.js',
+    function() {
+        // ...
+    }
+);
+                        </code></pre>
+
+                        <aside class="notes">
+                            <ul>
+                                <li>The module loader API's syntax is very similar to that of AMD's require </li>
+                                <li>You can use a similar System.load function to load a script file. The callback function would be invoked when the file is loaded. </li>
+                                <li>The module loader API also provides hooks for use cases such as translating modules on import (e.g. CoffeeScript) or customizing the mapping from module IDs to modules </li>
+                                <li>If you want to use the ES6 module format today, there are some polyfills and compilers available that you can use </li>
+                            </ul>
+                        </aside>
+                    </section>
+
+                <!-- ------------------------------------------------ -->
+
+                </section>
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+                <!-- ------------------------------------------------ -->
+
+
+                <section>
+                    <section data-markdown>
+                        ##Further Reading
+
+                        * [Using Objects to Organize Your Code](http://rmurphey.com/blog/2009/10/15/using-objects-to-organize-your-code/)
+                        * [JavaScript Module Pattern: In-Depth](http://www.adequatelygood.com/JavaScript-Module-Pattern-In-Depth.html)
+                        * [Why Web Modules?](http://requirejs.org/docs/why.html)
+                        * [Writing Modular JavaScript With AMD, CommonJS &amp; ES Harmony](http://addyosmani.com/writing-modular-js/)
+                        * [CommonJS Modules 1.1.1](http://wiki.commonjs.org/wiki/Modules/1.1.1)
+                        * [CommonJS Notes](http://requirejs.org/docs/commonjs.html)
+                        * [Asynchronous Module Definition](https://github.com/amdjs/amdjs-api/wiki/AMD)
+                        * [Why AMD?](http://requirejs.org/docs/whyamd.html)
+                    </section>
+
+
+                    <section data-markdown>
+                        ##Further Reading
+
+                        * [Universal Module Definition (UMD)](https://github.com/umdjs/umd)
+                        * [RequireJS API](http://requirejs.org/docs/api.html)
+                        * [AMD Patterns](http://unscriptable.com/code/AMD-module-patterns/)
+                        * [Writing for Node and the Browser](http://caolanmcmahon.com/posts/writing_for_node_and_the_browser/)
+                        * [Almond AMD Loader](https://github.com/jrburke/almond)
+                        * [amdefine](https://github.com/jrburke/amdefine)
+                        * [Harmony Modules](http://wiki.ecmascript.org/doku.php?id=harmony:modules)
+                        * [ECMAScript 6 Modules](http://www.2ality.com/2013/07/es6-modules.html)
+                        * [ES6 Resources For The Curious JavaScripter](http://addyosmani.com/blog/ecmascript-6-resources-for-the-curious-javascripter/)
+                    </section>
+                </section>
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+                <section>
+                    <h1>Q & A</h1>
+                    <br/>
+                    <br/>
+                    <br/>
+                    <h3>
+                        <div style="font-size: 1em;">
+                            <a href="https://twitter.com/zorder">@zorder</a>
+                        </div>
+                    </h3>
+                </section>
+
+
+            <!-- ==================================================================== -->
+            <!-- ==================================================================== -->
+
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+                mouseWheel: false,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+            Reveal.addEventListener( 'fragmentshown', function( event ) {
+                    var customBackground = event.fragment.getAttribute("data-background");
+                    if(customBackground) {
+                        event.fragment.parentNode.style.backgroundColor = customBackground;
+                    }
+                    // event.fragment = the fragment DOM element
+            } );
+
+		</script>
+
+	</body>
+</html>
